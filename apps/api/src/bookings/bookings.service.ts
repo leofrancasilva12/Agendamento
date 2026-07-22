@@ -165,19 +165,26 @@ export class BookingsService {
 
   findAllForCompany(
     companyId: string,
-    filters: { date?: string; professionalId?: string; status?: BookingStatus },
+    filters: { date?: string; from?: string; to?: string; professionalId?: string; status?: BookingStatus },
   ) {
+    const range = filters.from
+      ? {
+          gte: new Date(`${filters.from}T00:00:00`),
+          lt: new Date(`${filters.to ?? filters.from}T23:59:59`),
+        }
+      : filters.date
+        ? {
+            gte: new Date(`${filters.date}T00:00:00`),
+            lt: new Date(`${filters.date}T23:59:59`),
+          }
+        : undefined;
+
     return this.prisma.booking.findMany({
       where: {
         companyId,
         professionalId: filters.professionalId,
         status: filters.status,
-        ...(filters.date && {
-          startAt: {
-            gte: new Date(`${filters.date}T00:00:00`),
-            lt: new Date(`${filters.date}T23:59:59`),
-          },
-        }),
+        ...(range && { startAt: range }),
       },
       include: { service: true, professional: true, client: true },
       orderBy: { startAt: 'asc' },

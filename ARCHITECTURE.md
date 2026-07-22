@@ -185,7 +185,7 @@ Professional, Client}`.
 - `GET/POST/PATCH/DELETE /professionals`, `/professionals/:id`
 - `GET/PUT /professionals/:id/availability`
 - `GET/POST/PATCH/DELETE /clients`, `/clients/:id`
-- `GET /bookings?date&professionalId&status`
+- `GET /bookings?date&professionalId&status` — ou `?from&to` para um intervalo (usado pela agenda semanal)
 - `PATCH /bookings/:id/status`
 - `GET /dashboard/summary`
 

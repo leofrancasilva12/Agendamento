@@ -1,39 +1,51 @@
-import { apiFetch, Booking, formatPrice } from '@/lib/api';
+import { apiFetch, Booking, Professional } from '@/lib/api';
 import { getSessionToken } from '@/lib/session';
-import { updateBookingStatus } from '@/lib/actions';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { WeekCalendar } from '@/components/admin/WeekCalendar';
+import { CalendarToolbar } from '@/components/admin/CalendarToolbar';
 
-const STATUS_LABEL: Record<Booking['status'], string> = {
-  PENDING: 'Pendente',
-  CONFIRMED: 'Confirmado',
-  CANCELED: 'Cancelado',
-  COMPLETED: 'Concluído',
-  NO_SHOW: 'Não compareceu',
-};
+function toIso(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
 
-const STATUS_COLOR: Record<Booking['status'], string> = {
-  PENDING: 'bg-amber-100 text-amber-700',
-  CONFIRMED: 'bg-blue-100 text-blue-700',
-  CANCELED: 'bg-slate-200 text-slate-500',
-  COMPLETED: 'bg-green-100 text-green-700',
-  NO_SHOW: 'bg-red-100 text-red-700',
-};
+function sundayOf(date: Date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+}
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+function addDays(iso: string, days: number) {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return toIso(d);
+}
+
+function formatRange(start: string, end: string) {
+  const s = new Date(`${start}T00:00:00`);
+  const e = new Date(`${end}T00:00:00`);
+  const fmt = (d: Date, withYear: boolean) =>
+    d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: withYear ? 'numeric' : undefined });
+  return `${fmt(s, false)} – ${fmt(e, true)}`;
 }
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { date?: string };
+  searchParams: { week?: string; professionalId?: string };
 }) {
   const token = getSessionToken();
-  const date = searchParams.date ?? todayIso();
+  const todayWeek = toIso(sundayOf(new Date()));
+  const weekStart = searchParams.week ? toIso(sundayOf(new Date(`${searchParams.week}T00:00:00`))) : todayWeek;
+  const weekEnd = addDays(weekStart, 6);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const professionalId = searchParams.professionalId;
 
-  const [bookings, summary] = await Promise.all([
-    apiFetch<Booking[]>(`/bookings?date=${date}`, { token }),
+  const bookingsQuery = new URLSearchParams({ from: weekStart, to: weekEnd });
+  if (professionalId) bookingsQuery.set('professionalId', professionalId);
+
+  const [bookings, professionals, summary] = await Promise.all([
+    apiFetch<Booking[]>(`/bookings?${bookingsQuery.toString()}`, { token }),
+    apiFetch<Professional[]>('/professionals', { token }),
     apiFetch<{
       todayCount: number;
       activeServices: number;
@@ -64,70 +76,20 @@ export default async function DashboardPage({
       </div>
 
       <Card>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Agenda</h2>
-          <form className="flex items-center gap-2">
-            <input
-              type="date"
-              name="date"
-              defaultValue={date}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-            />
-            <Button type="submit" variant="secondary">
-              Ver
-            </Button>
-          </form>
+        <CalendarToolbar
+          weekStart={weekStart}
+          prevWeek={addDays(weekStart, -7)}
+          nextWeek={addDays(weekStart, 7)}
+          todayWeek={todayWeek}
+          rangeLabel={formatRange(weekStart, weekEnd)}
+          professionals={professionals}
+          professionalId={professionalId}
+        />
+        <div className="overflow-x-auto">
+          <div className="min-w-[640px]">
+            <WeekCalendar days={days} bookings={bookings} />
+          </div>
         </div>
-
-        {bookings.length === 0 && (
-          <p className="text-sm text-slate-500">Nenhum agendamento para esta data.</p>
-        )}
-
-        <ul className="divide-y divide-slate-100">
-          {bookings.map((booking) => (
-            <li key={booking.id} className="flex items-center justify-between py-3">
-              <div>
-                <p className="font-medium text-slate-900">
-                  {new Date(booking.startAt).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}{' '}
-                  — {booking.service.name}
-                </p>
-                <p className="text-sm text-slate-500">
-                  {booking.client.name} · {booking.professional.name} ·{' '}
-                  {formatPrice(booking.service.priceCents)}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLOR[booking.status]}`}>
-                  {STATUS_LABEL[booking.status]}
-                </span>
-                {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
-                  <>
-                    {booking.status === 'PENDING' && (
-                      <form action={updateBookingStatus.bind(null, booking.id, 'CONFIRMED')}>
-                        <Button variant="secondary" type="submit">
-                          Confirmar
-                        </Button>
-                      </form>
-                    )}
-                    <form action={updateBookingStatus.bind(null, booking.id, 'COMPLETED')}>
-                      <Button variant="secondary" type="submit">
-                        Concluir
-                      </Button>
-                    </form>
-                    <form action={updateBookingStatus.bind(null, booking.id, 'CANCELED')}>
-                      <Button variant="danger" type="submit">
-                        Cancelar
-                      </Button>
-                    </form>
-                  </>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
       </Card>
     </div>
   );
