@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agendamento
+      POSTGRES_PASSWORD: agendamento
+      POSTGRES_DB: agendamento
+    ports:
+      - '5432:5432'
+    volumes:
+      - agendamento_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  agendamento_postgres_data:
