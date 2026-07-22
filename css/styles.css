@@ -1,7 +1,10 @@
 :root {
-  --brand: #2563eb;
-  --brand-dark: #1d4ed8;
-  --brand-10: #eff4fe;
+  --brand: #ef6f61;
+  --brand-dark: #d9564a;
+  --brand-10: #fdece9;
+  --select-bg: #d7f5e3;
+  --select-text: #15803d;
+  --select-border: #86e0ac;
   --slate-50: #f8fafc;
   --slate-100: #f1f5f9;
   --slate-200: #e2e8f0;

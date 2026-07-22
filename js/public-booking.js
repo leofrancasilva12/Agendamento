@@ -299,7 +299,7 @@ function renderCalendar(container) {
           {
             disabled,
             onclick: () => { state.date = iso; loadSlots(); },
-            style: `aspect-ratio:1;border:none;border-radius:0.5rem;font-size:0.875rem;cursor:${disabled ? 'default' : 'pointer'};background:${selected ? 'var(--brand)' : 'transparent'};color:${selected ? '#fff' : disabled ? 'var(--slate-300)' : 'var(--slate-700)'};`,
+            style: `aspect-ratio:1;border:${selected ? '1px solid var(--select-border)' : 'none'};border-radius:0.5rem;font-size:0.875rem;font-weight:${selected ? '600' : '400'};cursor:${disabled ? 'default' : 'pointer'};background:${selected ? 'var(--select-bg)' : 'transparent'};color:${selected ? 'var(--select-text)' : disabled ? 'var(--slate-300)' : 'var(--slate-700)'};`,
           },
           String(day),
         ),
