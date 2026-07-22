@@ -52,6 +52,31 @@ npm run dev                # http://localhost:3000
 > funciona, graças aos npm workspaces — os passos acima podem ser rodados
 > como `npm run dev:api` / `npm run dev:web` a partir da raiz.
 
+## Banco de dados em produção (Supabase)
+
+O projeto usa PostgreSQL puro via Prisma, então funciona direto no
+[Supabase](https://supabase.com):
+
+1. Crie um projeto no Supabase e vá em **Project Settings → Database**.
+2. Copie as duas connection strings:
+   - **Connection pooling** (porta `6543`, modo *Transaction*) → variável
+     `DATABASE_URL`, com `?pgbouncer=true` no final da URL.
+   - **Direct connection** (porta `5432`) → variável `DIRECT_URL`.
+3. No `.env` da API:
+
+   ```bash
+   DATABASE_URL="postgresql://postgres:SENHA@db.xxxxx.supabase.co:6543/postgres?pgbouncer=true"
+   DIRECT_URL="postgresql://postgres:SENHA@db.xxxxx.supabase.co:5432/postgres"
+   ```
+
+4. Rode as migrations normalmente: `npm run prisma:migrate` (localmente) ou
+   `npx prisma migrate deploy` (em produção/CI) — o Prisma usa `DIRECT_URL`
+   para aplicar as migrations e `DATABASE_URL` (via pooler) em runtime.
+
+> `DIRECT_URL` é obrigatória mesmo fora do Supabase — em Postgres "normal"
+> (Docker, Railway, Render) basta repetir o mesmo valor de `DATABASE_URL`
+> (já é o padrão no `.env.example`).
+
 ## Notificações (e-mail / WhatsApp)
 
 - **E-mail**: configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`,
