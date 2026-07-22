@@ -35,6 +35,13 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   return response.json() as Promise<T>;
 }
 
+export interface CompanyHours {
+  weekday: number;
+  closed: boolean;
+  startTime?: string | null;
+  endTime?: string | null;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -42,17 +49,32 @@ export interface Company {
   email?: string;
   phone?: string | null;
   logoUrl?: string | null;
+  coverImageUrl?: string | null;
   primaryColor: string;
   timezone: string;
+  addressLine?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  whatsappNumber?: string | null;
+  hours?: CompanyHours[];
+}
+
+export interface ServiceCategory {
+  id: string;
+  name: string;
+  order: number;
 }
 
 export interface Service {
   id: string;
   name: string;
   description?: string | null;
+  imageUrl?: string | null;
   durationMinutes: number;
   priceCents: number;
   active: boolean;
+  category?: ServiceCategory | null;
+  categoryId?: string | null;
 }
 
 export interface Professional {
@@ -84,6 +106,16 @@ export interface Booking {
   professional: Professional;
   client: Client;
 }
+
+export const WEEKDAY_LABELS = [
+  'Domingo',
+  'Segunda-feira',
+  'Terça-feira',
+  'Quarta-feira',
+  'Quinta-feira',
+  'Sexta-feira',
+  'Sábado',
+];
 
 export function formatPrice(priceCents: number) {
   return (priceCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

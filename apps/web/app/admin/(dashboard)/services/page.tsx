@@ -1,6 +1,12 @@
-import { apiFetch, Professional, Service, formatDuration, formatPrice } from '@/lib/api';
+import { apiFetch, Professional, Service, ServiceCategory, formatDuration, formatPrice } from '@/lib/api';
 import { getSessionToken } from '@/lib/session';
-import { createService, deleteService, updateService } from '@/lib/actions';
+import {
+  createCategory,
+  createService,
+  deleteCategory,
+  deleteService,
+  updateService,
+} from '@/lib/actions';
 import { Card } from '@/components/ui/Card';
 import { Input, Label } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -11,19 +17,61 @@ type ServiceWithProfessionals = Service & {
 
 export default async function ServicesPage() {
   const token = getSessionToken();
-  const [services, professionals] = await Promise.all([
+  const [services, professionals, categories] = await Promise.all([
     apiFetch<ServiceWithProfessionals[]>('/services', { token }),
     apiFetch<Professional[]>('/professionals', { token }),
+    apiFetch<ServiceCategory[]>('/service-categories', { token }),
   ]);
 
   return (
     <div className="space-y-6">
+      <Card>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Categorias</h2>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <form key={category.id} action={deleteCategory.bind(null, category.id)}>
+              <button
+                type="submit"
+                className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700 hover:bg-red-50 hover:text-red-700"
+                title="Clique para excluir"
+              >
+                {category.name} ✕
+              </button>
+            </form>
+          ))}
+          {categories.length === 0 && (
+            <p className="text-sm text-slate-500">Nenhuma categoria ainda (ex.: Cabelo, Manicure).</p>
+          )}
+        </div>
+        <form action={createCategory} className="flex gap-2">
+          <Input name="name" placeholder="Nome da categoria" required />
+          <Button type="submit" variant="secondary">
+            Adicionar
+          </Button>
+        </form>
+      </Card>
+
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Novo serviço</h2>
         <form action={createService} className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="name">Nome</Label>
             <Input id="name" name="name" required />
+          </div>
+          <div>
+            <Label htmlFor="categoryId">Categoria</Label>
+            <select
+              id="categoryId"
+              name="categoryId"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="">Sem categoria</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <Label htmlFor="price">Preço (R$)</Label>
@@ -36,6 +84,10 @@ export default async function ServicesPage() {
           <div className="sm:col-span-2">
             <Label htmlFor="description">Descrição</Label>
             <Input id="description" name="description" />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="imageUrl">URL da foto (opcional)</Label>
+            <Input id="imageUrl" name="imageUrl" type="url" placeholder="https://..." />
           </div>
           <fieldset className="sm:col-span-2">
             <legend className="mb-1 text-sm font-medium text-slate-700">Profissionais</legend>
@@ -66,6 +118,7 @@ export default async function ServicesPage() {
                     {service.name} {!service.active && <span className="text-xs text-slate-400">(inativo)</span>}
                   </p>
                   <p className="text-sm text-slate-500">
+                    {service.category ? `${service.category.name} · ` : ''}
                     {formatDuration(service.durationMinutes)} · {formatPrice(service.priceCents)}
                   </p>
                 </div>
@@ -76,6 +129,22 @@ export default async function ServicesPage() {
                 <div>
                   <Label htmlFor={`name-${service.id}`}>Nome</Label>
                   <Input id={`name-${service.id}`} name="name" defaultValue={service.name} required />
+                </div>
+                <div>
+                  <Label htmlFor={`categoryId-${service.id}`}>Categoria</Label>
+                  <select
+                    id={`categoryId-${service.id}`}
+                    name="categoryId"
+                    defaultValue={service.categoryId ?? service.category?.id ?? ''}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">Sem categoria</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <Label htmlFor={`price-${service.id}`}>Preço (R$)</Label>
@@ -109,6 +178,15 @@ export default async function ServicesPage() {
                     id={`description-${service.id}`}
                     name="description"
                     defaultValue={service.description ?? ''}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor={`imageUrl-${service.id}`}>URL da foto</Label>
+                  <Input
+                    id={`imageUrl-${service.id}`}
+                    name="imageUrl"
+                    type="url"
+                    defaultValue={service.imageUrl ?? ''}
                   />
                 </div>
                 <fieldset className="sm:col-span-2">

@@ -10,7 +10,7 @@ export class ServicesService {
   findAll(companyId: string) {
     return this.prisma.service.findMany({
       where: { companyId },
-      include: { professionals: { include: { professional: true } } },
+      include: { professionals: { include: { professional: true } }, category: true },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -66,8 +66,16 @@ export class ServicesService {
   async findActiveByCompanySlug(slug: string) {
     return this.prisma.service.findMany({
       where: { active: true, company: { slug } },
-      select: { id: true, name: true, description: true, durationMinutes: true, priceCents: true },
-      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        imageUrl: true,
+        durationMinutes: true,
+        priceCents: true,
+        category: { select: { id: true, name: true, order: true } },
+      },
+      orderBy: [{ category: { order: 'asc' } }, { name: 'asc' }],
     });
   }
 

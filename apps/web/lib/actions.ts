@@ -31,6 +31,8 @@ export async function createService(formData: FormData) {
     body: JSON.stringify({
       name: formData.get('name'),
       description: formData.get('description') || undefined,
+      categoryId: formData.get('categoryId') || undefined,
+      imageUrl: formData.get('imageUrl') || undefined,
       durationMinutes: Number(formData.get('durationMinutes')),
       priceCents: Math.round(Number(formData.get('price')) * 100),
       professionalIds: formData.getAll('professionalIds'),
@@ -47,6 +49,8 @@ export async function updateService(id: string, formData: FormData) {
     body: JSON.stringify({
       name: formData.get('name'),
       description: formData.get('description') || undefined,
+      categoryId: formData.get('categoryId') || undefined,
+      imageUrl: formData.get('imageUrl') || undefined,
       durationMinutes: Number(formData.get('durationMinutes')),
       priceCents: Math.round(Number(formData.get('price')) * 100),
       active: formData.get('active') === 'on',
@@ -59,6 +63,23 @@ export async function updateService(id: string, formData: FormData) {
 export async function deleteService(id: string) {
   const token = requireToken();
   await apiFetch(`/services/${id}`, { method: 'DELETE', token });
+  revalidatePath('/admin/services');
+}
+
+// ---- Service categories ----
+export async function createCategory(formData: FormData) {
+  const token = requireToken();
+  await apiFetch('/service-categories', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ name: formData.get('name') }),
+  });
+  revalidatePath('/admin/services');
+}
+
+export async function deleteCategory(id: string) {
+  const token = requireToken();
+  await apiFetch(`/service-categories/${id}`, { method: 'DELETE', token });
   revalidatePath('/admin/services');
 }
 
@@ -150,7 +171,28 @@ export async function updateCompanySettings(formData: FormData) {
       phone: formData.get('phone') || undefined,
       primaryColor: formData.get('primaryColor') || undefined,
       timezone: formData.get('timezone') || undefined,
+      addressLine: formData.get('addressLine') || undefined,
+      instagramUrl: formData.get('instagramUrl') || undefined,
+      facebookUrl: formData.get('facebookUrl') || undefined,
+      whatsappNumber: formData.get('whatsappNumber') || undefined,
     }),
+  });
+  revalidatePath('/admin/settings');
+}
+
+export async function updateCompanyHours(formData: FormData) {
+  const token = requireToken();
+  const days = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+    weekday,
+    closed: formData.get(`closed-${weekday}`) === 'on',
+    startTime: String(formData.get(`start-${weekday}`) || '09:00'),
+    endTime: String(formData.get(`end-${weekday}`) || '18:00'),
+  }));
+
+  await apiFetch('/companies/me/hours', {
+    method: 'PUT',
+    token,
+    body: JSON.stringify({ days }),
   });
   revalidatePath('/admin/settings');
 }

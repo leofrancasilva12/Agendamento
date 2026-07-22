@@ -36,22 +36,58 @@ enum NotificationStatus {
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  email     String
-  phone     String?
-  logoUrl   String?
-  primaryColor String @default("#2563eb")
-  timezone  String   @default("America/Sao_Paulo")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  email          String
+  phone          String?
+  logoUrl        String?
+  coverImageUrl  String?
+  primaryColor   String   @default("#2563eb")
+  timezone       String   @default("America/Sao_Paulo")
+  addressLine    String?
+  instagramUrl   String?
+  facebookUrl    String?
+  whatsappNumber String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  users         User[]
-  professionals Professional[]
-  services      Service[]
-  clients       Client[]
-  bookings      Booking[]
+  users             User[]
+  professionals     Professional[]
+  services          Service[]
+  serviceCategories ServiceCategory[]
+  clients           Client[]
+  bookings          Booking[]
+  hours             CompanyHours[]
+}
+
+// Horários comerciais exibidos na página pública (informativo — a
+// disponibilidade real de agendamento é calculada por profissional, ver
+// Availability).
+model CompanyHours {
+  id        String  @id @default(cuid())
+  companyId String
+  weekday   Int // 0 = Domingo .. 6 = Sábado
+  closed    Boolean @default(false)
+  startTime String? // "09:00"
+  endTime   String? // "18:00"
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, weekday])
+}
+
+model ServiceCategory {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  services Service[]
+
+  @@index([companyId])
 }
 
 model User {
@@ -78,10 +114,10 @@ model Professional {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  company       Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  services      ServiceProfessional[]
-  availability  Availability[]
-  bookings      Booking[]
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  services     ServiceProfessional[]
+  availability Availability[]
+  bookings     Booking[]
 
   @@index([companyId])
 }
@@ -89,18 +125,22 @@ model Professional {
 model Service {
   id              String   @id @default(cuid())
   companyId       String
+  categoryId      String?
   name            String
   description     String?
+  imageUrl        String?
   durationMinutes Int
   priceCents      Int
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
 
   company       Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category      ServiceCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   professionals ServiceProfessional[]
   bookings      Booking[]
 
   @@index([companyId])
+  @@index([categoryId])
 }
 
 model ServiceProfessional {
@@ -117,7 +157,7 @@ model ServiceProfessional {
 model Availability {
   id             String @id @default(cuid())
   professionalId String
-  weekday        Int    // 0 = Sunday .. 6 = Saturday
+  weekday        Int // 0 = Sunday .. 6 = Saturday
   startTime      String // "09:00"
   endTime        String // "18:00"
 
@@ -138,8 +178,8 @@ model Client {
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
-  @@index([companyId])
   @@unique([companyId, phone])
+  @@index([companyId])
 }
 
 model Booking {

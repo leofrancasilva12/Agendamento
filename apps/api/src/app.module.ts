@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { CompaniesModule } from './companies/companies.module';
 import { ServicesModule } from './services/services.module';
+import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { ProfessionalsModule } from './professionals/professionals.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { ClientsModule } from './clients/clients.module';
@@ -23,6 +24,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     AuthModule,
     CompaniesModule,
     ServicesModule,
+    ServiceCategoriesModule,
     ProfessionalsModule,
     AvailabilityModule,
     ClientsModule,

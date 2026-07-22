@@ -35,4 +35,12 @@ export class ProfessionalsService {
     await this.prisma.professional.delete({ where: { id } });
     return { success: true };
   }
+
+  findActiveByCompanySlug(slug: string) {
+    return this.prisma.professional.findMany({
+      where: { active: true, company: { slug } },
+      select: { id: true, name: true, avatarUrl: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
 }

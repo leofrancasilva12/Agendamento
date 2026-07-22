@@ -116,15 +116,23 @@ entidades:
 
 | Tabela | Descrição |
 |---|---|
-| `Company` | Tenant. `slug` único = URL pública. |
+| `Company` | Tenant. `slug` único = URL pública. Também guarda endereço, redes sociais e cor/logo. |
+| `CompanyHours` | Horário comercial exibido na página pública (informativo). |
 | `User` | Login do painel admin. `role`: OWNER, STAFF. |
 | `Professional` | Prestador de serviço da empresa. |
-| `Service` | Serviço oferecido (duração, preço). |
+| `ServiceCategory` | Agrupamento de serviços (ex.: Cabelo, Manicure) exibido na página pública. |
+| `Service` | Serviço oferecido (duração, preço, foto, categoria). |
 | `ServiceProfessional` | N:N — quais profissionais atendem qual serviço. |
-| `Availability` | Janela de trabalho recorrente (dia da semana + horário). |
+| `Availability` | Janela de trabalho recorrente (dia da semana + horário) por profissional — usada no cálculo real de disponibilidade. |
 | `Client` | Cliente final da empresa (quem agenda). |
 | `Booking` | Agendamento: serviço + profissional + cliente + horário + status. |
 | `NotificationLog` | Histórico de envios (e-mail/WhatsApp) por agendamento. |
+
+Agendamento sem preferência de profissional: quando o cliente não escolhe
+um profissional específico, a API retorna a união dos horários livres de
+todos os profissionais qualificados para o serviço, e ao confirmar escolhe
+automaticamente o primeiro que ainda estiver livre naquele horário
+(revalidado no servidor).
 
 Relacionamentos-chave: `Company 1—N {User, Professional, Service, Client,
 Booking}`; `Professional 1—N Availability`; `Booking N—1 {Service,
@@ -133,11 +141,15 @@ Professional, Client}`.
 ## 5. Fluxo de Funcionamento
 
 **Cliente final (página pública `/{slug}`):**
-1. Abre `/{slug}` → API retorna dados da empresa (nome, logo, cor) e serviços ativos.
-2. Escolhe um serviço → API retorna profissionais que atendem esse serviço.
-3. Escolhe profissional e data → API calcula horários livres (`Availability`
-   do profissional menos `Booking`s já ocupados menos duração do serviço).
-4. Escolhe horário, preenche nome/telefone/e-mail → `POST
+1. Abre `/{slug}` → API retorna dados da empresa (nome, logo, cor, endereço,
+   redes sociais, horários) e serviços ativos agrupados por categoria.
+2. Escolhe um serviço → API retorna profissionais que atendem esse serviço
+   (mais a opção "sem preferência").
+3. Escolhe profissional (ou "sem preferência") e uma data no calendário →
+   API calcula horários livres (`Availability` do(s) profissional(is) menos
+   `Booking`s já ocupados menos duração do serviço; "sem preferência" é a
+   união dos horários livres de todos os qualificados).
+4. Escolhe horário, preenche nome/telefone/e-mail/observações → `POST
    /public/companies/:slug/bookings` cria o agendamento com status `PENDING`
    (ou `CONFIRMED` direto, configurável) e dispara notificação de confirmação.
 5. Tela de confirmação com resumo.
@@ -158,14 +170,17 @@ Professional, Client}`.
 - `GET /auth/me`
 
 **Público (por slug, sem auth)**
-- `GET /public/companies/:slug`
-- `GET /public/companies/:slug/services`
+- `GET /public/companies/:slug` — dados da empresa, endereço, redes sociais, horários
+- `GET /public/companies/:slug/services` — serviços ativos, com categoria e foto
 - `GET /public/companies/:slug/services/:serviceId/professionals`
-- `GET /public/companies/:slug/availability?professionalId&serviceId&date`
-- `POST /public/companies/:slug/bookings`
+- `GET /public/companies/:slug/professionals` — equipe (para "Nossa Equipe")
+- `GET /public/companies/:slug/availability?serviceId&date&professionalId?` — `professionalId` omitido = "sem preferência" (união dos horários livres)
+- `POST /public/companies/:slug/bookings` — `professionalId` opcional (mesma regra)
 
 **Admin (JWT obrigatório)**
 - `GET/PATCH /companies/me`
+- `PUT /companies/me/hours` — horário comercial exibido na página pública
+- `GET/POST/PATCH/DELETE /service-categories`, `/service-categories/:id`
 - `GET/POST/PATCH/DELETE /services`, `/services/:id`
 - `GET/POST/PATCH/DELETE /professionals`, `/professionals/:id`
 - `GET/PUT /professionals/:id/availability`
@@ -192,10 +207,31 @@ faz *no-op* com log (permite rodar localmente sem n8n configurado).
 
 ## 8. Funcionalidades Extras (roadmap)
 
+Priorizadas para as próximas iterações (comparado ao fluxo do Agendin):
+
+1. **Serviços adicionais/upsell no agendamento** — na etapa de confirmação,
+   oferecer serviços relacionados à categoria escolhida (ex.: ao agendar
+   "Alongamento em Fibra de Vidro", sugerir "Esmaltação em Gel" como
+   adicional). Modelagem: `Booking` passaria a ter uma relação N:N opcional
+   com `Service` (adicionais), somando duração e preço ao total.
+2. **Perguntas customizadas por empresa** — formulário dinâmico configurável
+   pelo admin (ex.: "possui alergia a esmalte?"), anexado ao agendamento.
+   Modelagem: `CustomQuestion` (companyId, label, tipo, obrigatória) +
+   `BookingAnswer` (bookingId, questionId, valor).
+3. **Área do cliente (login do cliente final)** — cliente autentica por
+   telefone/e-mail e vê histórico dos próprios agendamentos entre empresas
+   diferentes. Requer um modelo de conta de cliente separado de `Client`
+   (que hoje é por-empresa) e sessão própria (JWT ou magic link).
+4. **Verificação de WhatsApp por código/captcha** — antes de confirmar o
+   agendamento público, validar o número via SMS/WhatsApp OTP (ou
+   Cloudflare Turnstile) para reduzir spam e no-show. Requer um provedor de
+   SMS/OTP (Twilio Verify, Zenvia, etc.) e um passo extra no wizard público.
+
+Outras ideias de roadmap:
 - Planos de assinatura por empresa (Stripe/Mercado Pago) com limites (nº de
   profissionais, nº de agendamentos/mês).
 - Bloqueios avulsos de agenda (férias, folga) além da recorrência semanal.
-- Página pública com tema por empresa (cor/logo já modelados em `Company`).
+- Tema por empresa aplicado de fato na UI pública (usar `primaryColor`).
 - Relatórios (faturamento por profissional/serviço, taxa de no-show).
 - Avaliação pós-atendimento (link enviado após `COMPLETED`).
 

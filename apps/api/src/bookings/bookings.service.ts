@@ -23,48 +23,71 @@ export class BookingsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async getAvailability(slug: string, query: QueryAvailabilityDto) {
-    const company = await this.prisma.company.findUnique({ where: { slug } });
-    if (!company) throw new NotFoundException('Empresa não encontrada');
+  private async qualifiedProfessionals(companyId: string, serviceId: string) {
+    const links = await this.prisma.serviceProfessional.findMany({
+      where: { serviceId, professional: { companyId, active: true } },
+      include: { professional: true },
+    });
+    return links.map((link) => link.professional);
+  }
 
-    const [service, professional] = await Promise.all([
-      this.prisma.service.findFirst({
-        where: { id: query.serviceId, companyId: company.id, active: true },
-      }),
-      this.prisma.professional.findFirst({
-        where: { id: query.professionalId, companyId: company.id, active: true },
-      }),
-    ]);
-    if (!service) throw new NotFoundException('Serviço não encontrado');
-    if (!professional) throw new NotFoundException('Profissional não encontrado');
-
-    const requestedDate = new Date(`${query.date}T00:00:00`);
-    const weekday = requestedDate.getDay();
+  private async slotsForProfessional(
+    professionalId: string,
+    durationMinutes: number,
+    date: string,
+  ): Promise<string[]> {
+    const weekday = new Date(`${date}T00:00:00`).getDay();
 
     const [windows, bookings] = await Promise.all([
-      this.prisma.availability.findMany({
-        where: { professionalId: professional.id, weekday },
-      }),
+      this.prisma.availability.findMany({ where: { professionalId, weekday } }),
       this.prisma.booking.findMany({
         where: {
-          professionalId: professional.id,
+          professionalId,
           status: { in: [...ACTIVE_STATUSES] },
           startAt: {
-            gte: new Date(`${query.date}T00:00:00`),
-            lt: new Date(`${query.date}T23:59:59`),
+            gte: new Date(`${date}T00:00:00`),
+            lt: new Date(`${date}T23:59:59`),
           },
         },
         select: { startAt: true, endAt: true },
       }),
     ]);
 
-    const slots = computeAvailableSlots(
+    return computeAvailableSlots(
       windows,
       bookings.map((b) => ({ startAt: b.startAt, endAt: b.endAt })),
-      service.durationMinutes,
-      query.date,
+      durationMinutes,
+      date,
       new Date(),
     );
+  }
+
+  async getAvailability(slug: string, query: QueryAvailabilityDto) {
+    const company = await this.prisma.company.findUnique({ where: { slug } });
+    if (!company) throw new NotFoundException('Empresa não encontrada');
+
+    const service = await this.prisma.service.findFirst({
+      where: { id: query.serviceId, companyId: company.id, active: true },
+    });
+    if (!service) throw new NotFoundException('Serviço não encontrado');
+
+    if (query.professionalId) {
+      const professional = await this.prisma.professional.findFirst({
+        where: { id: query.professionalId, companyId: company.id, active: true },
+      });
+      if (!professional) throw new NotFoundException('Profissional não encontrado');
+
+      const slots = await this.slotsForProfessional(professional.id, service.durationMinutes, query.date);
+      return { date: query.date, durationMinutes: service.durationMinutes, slots };
+    }
+
+    // "Sem preferência" — união dos horários livres de todos os profissionais
+    // qualificados para o serviço.
+    const professionals = await this.qualifiedProfessionals(company.id, service.id);
+    const slotLists = await Promise.all(
+      professionals.map((p) => this.slotsForProfessional(p.id, service.durationMinutes, query.date)),
+    );
+    const slots = [...new Set(slotLists.flat())].sort();
 
     return { date: query.date, durationMinutes: service.durationMinutes, slots };
   }
@@ -73,24 +96,18 @@ export class BookingsService {
     const company = await this.prisma.company.findUnique({ where: { slug } });
     if (!company) throw new NotFoundException('Empresa não encontrada');
 
-    const [service, professional] = await Promise.all([
-      this.prisma.service.findFirst({
-        where: { id: dto.serviceId, companyId: company.id, active: true },
-      }),
-      this.prisma.professional.findFirst({
-        where: { id: dto.professionalId, companyId: company.id, active: true },
-      }),
-    ]);
-    if (!service) throw new NotFoundException('Serviço não encontrado');
-    if (!professional) throw new NotFoundException('Profissional não encontrado');
-
-    // Revalidate the slot server-side — never trust the time sent by the client.
-    const availability = await this.getAvailability(slug, {
-      serviceId: dto.serviceId,
-      professionalId: dto.professionalId,
-      date: dto.date,
+    const service = await this.prisma.service.findFirst({
+      where: { id: dto.serviceId, companyId: company.id, active: true },
     });
-    if (!availability.slots.includes(dto.time)) {
+    if (!service) throw new NotFoundException('Serviço não encontrado');
+
+    const professional = await this.resolveProfessional(
+      company.id,
+      service.id,
+      service.durationMinutes,
+      dto,
+    );
+    if (!professional) {
       throw new BadRequestException('Esse horário não está mais disponível');
     }
 
@@ -116,6 +133,34 @@ export class BookingsService {
     await this.notificationsService.notifyBookingCreated(booking);
 
     return booking;
+  }
+
+  // Revalida o horário no servidor (nunca confia no horário enviado pelo
+  // cliente). Quando professionalId é informado, valida só aquele
+  // profissional; quando "sem preferência", escolhe o primeiro qualificado
+  // que ainda esteja livre nesse horário.
+  private async resolveProfessional(
+    companyId: string,
+    serviceId: string,
+    durationMinutes: number,
+    dto: CreatePublicBookingDto,
+  ) {
+    if (dto.professionalId) {
+      const professional = await this.prisma.professional.findFirst({
+        where: { id: dto.professionalId, companyId, active: true },
+      });
+      if (!professional) throw new NotFoundException('Profissional não encontrado');
+
+      const slots = await this.slotsForProfessional(professional.id, durationMinutes, dto.date);
+      return slots.includes(dto.time) ? professional : null;
+    }
+
+    const professionals = await this.qualifiedProfessionals(companyId, serviceId);
+    for (const professional of professionals) {
+      const slots = await this.slotsForProfessional(professional.id, durationMinutes, dto.date);
+      if (slots.includes(dto.time)) return professional;
+    }
+    return null;
   }
 
   findAllForCompany(
