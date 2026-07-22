@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agenda — Agendamento</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div id="admin-header"></div>
+  <main class="admin-main stack">
+    <div id="stats" class="grid-stats"></div>
+
+    <div class="card">
+      <div id="toolbar" class="row-between mb-4"></div>
+      <div id="calendar-wrapper" style="overflow-x:auto;">
+        <div id="calendar" style="min-width:640px;"></div>
+      </div>
+    </div>
+  </main>
+
+  <div id="modal-root"></div>
+
+  <script src="/js/config.js"></script>
+  <script type="module" src="/js/admin/dashboard.js"></script>
+</body>
+</html>

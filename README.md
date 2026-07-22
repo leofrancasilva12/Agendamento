@@ -8,95 +8,128 @@ Ver a arquitetura completa em [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ## Stack
 
-- **apps/api** — NestJS + Prisma + PostgreSQL (API REST em `/api/v1`)
-- **apps/web** — Next.js 14 (App Router) + Tailwind CSS
+Site estático (HTML/CSS/JS puro, sem build) hospedado na **Vercel**,
+consumindo o **Supabase** diretamente do navegador — Postgres + Auth + Row
+Level Security + funções (RPC) fazem o papel do backend. Não há servidor
+Node/API própria.
+
+- `index.html`, `empresa.html` (página pública de agendamento), `admin/*.html`
+- `js/` — lógica de cada página (vanilla JS, `type="module"`)
+- `css/styles.css` — design system simples, sem framework CSS
+- `supabase/` — schema SQL, funções RPC, seed, Edge Functions
 
 ## Como rodar localmente
 
-### 1. Banco de dados
+Não tem servidor pra rodar — é só abrir os arquivos com qualquer servidor
+estático. Duas coisas precisam estar prontas antes:
 
-```bash
-docker compose up -d
+### 1. Criar o projeto no Supabase e aplicar o schema
+
+1. Crie um projeto em [supabase.com](https://supabase.com).
+2. Abra o **SQL Editor** do projeto e rode, nesta ordem:
+   1. `supabase/schema.sql` (tabelas + Row Level Security)
+   2. `supabase/functions.sql` (funções RPC — disponibilidade, criar
+      agendamento, cadastro de empresa, etc.)
+   3. `supabase/seed.sql` (opcional — cria a empresa de exemplo
+      `salao-exemplo` com catálogo de serviços/profissionais)
+
+### 2. Configurar as chaves do projeto no site
+
+Edite `js/config.js` com a URL e a `anon key` do seu projeto (**Project
+Settings → API**):
+
+```js
+window.SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
+window.SUPABASE_ANON_KEY = 'sua-anon-key-publica';
 ```
 
-Isso sobe um PostgreSQL local em `localhost:5432` (usuário/senha/banco:
-`agendamento`).
+> A `anon key` é pública por design (é o que o navegador usa) — a segurança
+> real vem das políticas de Row Level Security no banco, não do sigilo da
+> chave. Por isso `js/config.js` pode ficar versionado normalmente.
 
-### 2. Backend (API)
+### 3. Servir os arquivos estáticos
 
-```bash
-cd apps/api
-cp .env.example .env
-npm install
-npm run prisma:migrate   # cria as tabelas
-npm run seed              # cria uma empresa de exemplo
-npm run start:dev         # http://localhost:3333/api/v1
-```
-
-O seed cria a empresa `salao-exemplo` com login admin:
-`owner@salaoexemplo.com.br` / `senha123`.
-
-### 3. Frontend (Web)
+Qualquer servidor estático funciona, por exemplo:
 
 ```bash
-cd apps/web
-cp .env.example .env.local
-npm install
-npm run dev                # http://localhost:3000
+npx serve .
+# ou: python3 -m http.server 8000
 ```
 
-- Página pública de agendamento: `http://localhost:3000/salao-exemplo`
-- Painel admin: `http://localhost:3000/admin/login`
+- Página pública de agendamento: `http://localhost:PORT/salao-exemplo`
+- Painel admin: `http://localhost:PORT/admin/login.html`
 
-> Instalando a partir da raiz do monorepo (`npm install` na raiz) também
-> funciona, graças aos npm workspaces — os passos acima podem ser rodados
-> como `npm run dev:api` / `npm run dev:web` a partir da raiz.
+Crie sua conta de admin em `admin/register.html` (a empresa `salao-exemplo`
+do seed não tem dono — é só o catálogo público de exemplo).
 
-## Banco de dados em produção (Supabase)
+> **Confirmação de e-mail**: se o seu projeto Supabase exigir confirmação
+> de e-mail (padrão em projetos novos), o cadastro da empresa só é
+> concluído no primeiro login *depois* de confirmar o e-mail — o site já
+> trata esse fluxo automaticamente. Pra testar mais rápido em
+> desenvolvimento, você pode desligar "Confirm email" em **Authentication →
+> Providers → Email** nas configurações do projeto.
 
-O projeto usa PostgreSQL puro via Prisma, então funciona direto no
-[Supabase](https://supabase.com):
+## Deploy em produção
 
-1. Crie um projeto no Supabase e vá em **Project Settings → Database**.
-2. Copie as duas connection strings:
-   - **Connection pooling** (porta `6543`, modo *Transaction*) → variável
-     `DATABASE_URL`, com `?pgbouncer=true` no final da URL.
-   - **Direct connection** (porta `5432`) → variável `DIRECT_URL`.
-3. No `.env` da API:
+### Vercel (frontend)
 
-   ```bash
-   DATABASE_URL="postgresql://postgres:SENHA@db.xxxxx.supabase.co:6543/postgres?pgbouncer=true"
-   DIRECT_URL="postgresql://postgres:SENHA@db.xxxxx.supabase.co:5432/postgres"
-   ```
+1. Importe o repositório na Vercel — **Root Directory** = raiz do repo
+   (não tem subpasta, é um site estático simples).
+2. Não precisa de build command (framework preset "Other"/estático) — o
+   `js/config.js` já commitado com a URL/anon key do seu projeto Supabase
+   vai junto no deploy.
+3. Deploy.
 
-4. Rode as migrations normalmente: `npm run prisma:migrate` (localmente) ou
-   `npx prisma migrate deploy` (em produção/CI) — o Prisma usa `DIRECT_URL`
-   para aplicar as migrations e `DATABASE_URL` (via pooler) em runtime.
+### Supabase (backend)
 
-> `DIRECT_URL` é obrigatória mesmo fora do Supabase — em Postgres "normal"
-> (Docker, Railway, Render) basta repetir o mesmo valor de `DATABASE_URL`
-> (já é o padrão no `.env.example`).
+Já está pronto assim que você aplicar `schema.sql` + `functions.sql` no
+projeto — não tem servidor pra hospedar. Só falta, opcionalmente:
+
+- **Edge Functions** para notificações reais (ver seção abaixo)
+- Desligar "Confirm email" (ou configurar o provedor de e-mail do Supabase)
+  se quiser cadastro de empresa sem esse passo extra
 
 ## Notificações (e-mail / WhatsApp)
 
-- **E-mail**: configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`,
-  `SMTP_FROM` no `.env` da API. Sem SMTP configurado, os e-mails são apenas
-  logados no console (não quebra o fluxo de agendamento).
-- **WhatsApp**: configure `N8N_BOOKING_CREATED_WEBHOOK_URL` e
-  `N8N_BOOKING_REMINDER_WEBHOOK_URL` apontando para fluxos n8n que recebem o
-  payload do agendamento e disparam a mensagem (WhatsApp Business API,
-  Twilio, etc.). Sem webhook configurado, o envio é apenas logado.
+Implementadas como **Supabase Edge Functions** (`supabase/edge/`):
+
+- **`send-notification`**: disparada por um *Database Webhook* em `INSERT`
+  na tabela `bookings` (configure em **Database → Webhooks** apontando
+  para a função). Envia e-mail de confirmação (via [Resend](https://resend.com),
+  configurável) e chama um webhook de WhatsApp (n8n, Twilio, etc.).
+- **`send-reminders`**: agendada via Supabase Cron (`supabase functions
+  schedule`), roda periodicamente e envia lembrete 24h antes.
+
+Deploy (requer [Supabase CLI](https://supabase.com/docs/guides/cli)):
+
+```bash
+supabase functions deploy send-notification
+supabase functions deploy send-reminders
+supabase functions schedule send-reminders --cron "0 * * * *"
+
+supabase secrets set \
+  RESEND_API_KEY=... \
+  EMAIL_FROM=no-reply@seudominio.com.br \
+  N8N_BOOKING_CREATED_WEBHOOK_URL=... \
+  N8N_BOOKING_REMINDER_WEBHOOK_URL=...
+```
+
+Sem essas variáveis configuradas, as funções só logam (não quebram o
+agendamento).
 
 ## Testado
 
-- Build de produção de `apps/api` (`nest build`) e `apps/web` (`next build`)
-  sem erros.
-- Fluxo completo via API: criação de empresa/serviço/profissional (seed),
-  cálculo de horários disponíveis, criação de agendamento público, login
-  admin e listagem de agendamentos por empresa.
-- Fluxo completo no navegador (Playwright): wizard público de agendamento
-  (serviço → profissional → data/hora) e painel admin (login → dashboard →
-  serviços).
+- Todo o SQL (`schema.sql`, `functions.sql`, `seed.sql`) validado num
+  Postgres local simulando o Supabase (schema `auth` + papéis `anon`/
+  `authenticated` + Row Level Security real, sem bypass de superusuário):
+  isolamento entre empresas, "sem preferência" escolhendo profissional
+  automaticamente e evitando duplo agendamento, dedup de cliente por
+  telefone, `register_company`/`set_availability`/`set_company_hours`/
+  `dashboard_summary`, e — importante — que dados sensíveis
+  (e-mail/telefone de `companies` e `professionals`) **não** vazam nas
+  rotas públicas.
+- Fluxo completo no navegador (Playwright) contra um mock local do cliente
+  Supabase: wizard público de agendamento e painel admin.
 
 ## Roadmap
 

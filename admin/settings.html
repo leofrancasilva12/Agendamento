@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Configurações — Agendamento</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div id="admin-header"></div>
+  <main class="admin-main stack">
+    <div class="card">
+      <h2 class="text-lg font-semibold mb-1">Página pública de agendamento</h2>
+      <p class="text-sm text-muted mb-3">Compartilhe este link com seus clientes:</p>
+      <code id="public-url" style="display:block;background:var(--slate-100);border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.875rem;"></code>
+    </div>
+
+    <div class="card">
+      <h2 class="text-lg font-semibold mb-4">Dados da empresa</h2>
+      <form id="company-form" class="stack-sm">
+        <div class="field-row">
+          <div><label for="s-name">Nome</label><input id="s-name" name="name" type="text" required /></div>
+          <div><label for="s-phone">Telefone</label><input id="s-phone" name="phone" type="text" /></div>
+        </div>
+        <div class="field-row">
+          <div><label for="s-color">Cor principal</label><input id="s-color" name="primaryColor" type="color" /></div>
+          <div><label for="s-timezone">Fuso horário</label><input id="s-timezone" name="timezone" type="text" /></div>
+        </div>
+        <div><label for="s-address">Endereço</label><input id="s-address" name="addressLine" type="text" placeholder="Rua, número - Bairro - Cidade - UF - CEP" /></div>
+        <div class="field-row">
+          <div><label for="s-instagram">Instagram (URL)</label><input id="s-instagram" name="instagramUrl" type="url" /></div>
+          <div><label for="s-facebook">Facebook (URL)</label><input id="s-facebook" name="facebookUrl" type="url" /></div>
+        </div>
+        <div><label for="s-whatsapp">WhatsApp (só números, com DDD)</label><input id="s-whatsapp" name="whatsappNumber" type="text" placeholder="11999990000" /></div>
+        <button type="submit" class="btn btn-primary">Salvar alterações</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 class="text-lg font-semibold mb-1">Horários de funcionamento</h2>
+      <p class="text-sm text-muted mb-4">Exibidos na página pública. Não interferem na disponibilidade de agendamento, que segue os horários de cada profissional.</p>
+      <form id="hours-form" class="stack-sm"></form>
+    </div>
+  </main>
+
+  <script src="/js/config.js"></script>
+  <script type="module" src="/js/admin/settings.js"></script>
+</body>
+</html>

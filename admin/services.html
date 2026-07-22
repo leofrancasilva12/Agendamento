@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Serviços — Agendamento</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div id="admin-header"></div>
+  <main class="admin-main stack">
+    <div class="card">
+      <h2 class="text-lg font-semibold mb-4">Categorias</h2>
+      <div id="categories-list" class="row mb-4" style="flex-wrap:wrap;"></div>
+      <form id="category-form" class="row">
+        <input id="category-name" type="text" placeholder="Nome da categoria" required style="flex:1;" />
+        <button type="submit" class="btn btn-secondary">Adicionar</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 class="text-lg font-semibold mb-4">Novo serviço</h2>
+      <div id="service-form"></div>
+    </div>
+
+    <div id="services-list" class="stack"></div>
+  </main>
+
+  <script src="/js/config.js"></script>
+  <script type="module" src="/js/admin/services.js"></script>
+</body>
+</html>

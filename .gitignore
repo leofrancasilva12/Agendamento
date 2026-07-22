@@ -1,11 +1,6 @@
 node_modules/
-dist/
-build/
-.next/
-.env
-.env.local
-.env.*.local
 *.log
 .DS_Store
-coverage/
-.turbo/
+
+# CLI da Supabase (se usada localmente)
+.supabase/

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Criar empresa — Agendamento</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem;">
+    <div class="card" style="max-width:24rem; width:100%;">
+      <div id="confirm-email-message" class="hidden text-center">
+        <h1 class="text-xl font-semibold mb-2">Confirme seu e-mail</h1>
+        <p class="text-sm text-muted">
+          Enviamos um link de confirmação para o seu e-mail. Depois de confirmar, volte e faça login —
+          o cadastro da sua empresa será concluído automaticamente.
+        </p>
+        <a href="/admin/login.html" class="btn btn-primary mt-4" style="width:100%;">Ir para o login</a>
+      </div>
+
+      <div id="form-wrapper">
+        <h1 class="text-xl font-semibold mb-4">Criar sua empresa</h1>
+        <div id="error-box" class="hidden mb-3"></div>
+        <form id="register-form">
+          <div class="field">
+            <label for="companyName">Nome do negócio</label>
+            <input id="companyName" name="companyName" type="text" required />
+          </div>
+          <div class="field">
+            <label for="slug">Endereço da página (slug)</label>
+            <input id="slug" name="slug" type="text" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="minha-empresa" required />
+          </div>
+          <div class="field">
+            <label for="ownerName">Seu nome</label>
+            <input id="ownerName" name="ownerName" type="text" required />
+          </div>
+          <div class="field">
+            <label for="email">E-mail</label>
+            <input id="email" name="email" type="email" required />
+          </div>
+          <div class="field">
+            <label for="password">Senha</label>
+            <input id="password" name="password" type="password" minlength="6" required />
+          </div>
+          <button id="submit-btn" type="submit" class="btn btn-primary" style="width:100%;">Criar empresa</button>
+        </form>
+        <p class="text-sm text-muted text-center mt-4">
+          Já tem conta? <a href="/admin/login.html" style="color:var(--brand); font-weight:500;">Entrar</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/config.js"></script>
+  <script type="module" src="/js/admin/register.js"></script>
+</body>
+</html>

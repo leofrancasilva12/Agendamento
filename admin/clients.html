@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clientes — Agendamento</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div id="admin-header"></div>
+  <main class="admin-main stack">
+    <div class="card">
+      <h2 class="text-lg font-semibold mb-4">Novo cliente</h2>
+      <form id="new-client-form" class="stack-sm">
+        <div class="field-row">
+          <div><label for="c-name">Nome</label><input id="c-name" name="name" type="text" required /></div>
+          <div><label for="c-phone">Telefone</label><input id="c-phone" name="phone" type="text" required /></div>
+          <div><label for="c-email">E-mail</label><input id="c-email" name="email" type="email" /></div>
+        </div>
+        <button type="submit" class="btn btn-primary">Salvar cliente</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <table class="simple-table">
+        <thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th></th></tr></thead>
+        <tbody id="clients-body"></tbody>
+      </table>
+      <p id="empty-message" class="text-sm text-muted hidden">Nenhum cliente cadastrado ainda.</p>
+    </div>
+  </main>
+
+  <script src="/js/config.js"></script>
+  <script type="module" src="/js/admin/clients.js"></script>
+</body>
+</html>
